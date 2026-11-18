@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume & ATS Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-indigo-400 mb-2">AI Resume & ATS Analyzer</h1>
+            <p class="text-slate-400">Apna resume aur job description daalo, aur instant ATS match score pao.</p>
+        </header>
+
+        <!-- API Key Section -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <label for="apiKey" class="text-sm font-medium text-slate-300">Gemini API Key:</label>
+            <input type="password" id="apiKey" placeholder="Apni Gemini API key yahan paste karo..." 
+                class="w-full sm:w-2/3 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- Main Input Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold mb-2 text-indigo-300">1. Upload Resume (PDF)</h2>
+                    <p class="text-xs text-slate-400 mb-4">Sirf PDF file upload karein (Max 5MB).</p>
+                    <input type="file" id="resumeInput" accept=".pdf" 
+                        class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+                </div>
+                <p id="fileStatus" class="text-xs text-emerald-400 mt-4 hidden">File ready for scanning!</p>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h2 class="text-lg font-semibold mb-2 text-indigo-300">2. Paste Job Description</h2>
+                <textarea id="jobDesc" rows="6" placeholder="Company ki job requirements yahan paste karo..."
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500"></textarea>
+            </div>
+        </div>
+
+        <!-- Analyze Button -->
+        <div class="text-center mb-10">
+            <button id="analyzeBtn" 
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer">
+                Analyze Resume
+            </button>
+            <p id="loadingText" class="text-indigo-400 text-sm mt-3 hidden animate-pulse">AI tumhara resume scan kar raha hai...</p>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div id="resultSection" class="hidden space-y-6">
+            <!-- Score Card -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 text-center">
+                <h3 class="text-slate-400 text-sm uppercase tracking-wider mb-1">ATS Match Score</h3>
+                <div id="scoreDisplay" class="text-5xl font-extrabold text-emerald-400">0%</div>
+                <p id="summaryText" class="text-slate-300 text-sm mt-3 max-w-2xl mx-auto"></p>
+            </div>
+
+            <!-- Keywords & Tips Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold text-rose-400 mb-3">Missing Keywords</h3>
+                    <ul id="missingKeywords" class="flex flex-wrap gap-2"></ul>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold text-amber-400 mb-3">Improvement Tips</h3>
+                    <ul id="tipsList" class="list-disc list-inside text-sm text-slate-300 space-y-2"></ul>
+                </div>
+            </div>
+
+            <!-- AI Suggested Bullet Points -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-lg font-semibold text-indigo-400">Ready-to-Use Resume Bullet Points</h3>
+                    <button id="copyBulletsBtn" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition cursor-pointer">
+                        Copy Bullets
+                    </button>
+                </div>
+                <ul id="suggestedBulletsList" class="list-disc list-inside text-sm text-slate-300 space-y-2"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
