@@ -16,19 +16,14 @@
             <p class="text-slate-400">Apna resume aur job description daalo, aur instant ATS match score pao.</p>
         </header>
 
-        <!-- Multi-Provider API Key Section -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex flex-col md:flex-row gap-3 items-center justify-between">
-            <div class="flex items-center gap-2 w-full md:w-auto">
-                <label for="apiProvider" class="text-sm font-medium text-slate-300 whitespace-nowrap">AI Provider:</label>
-                <select id="apiProvider" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-indigo-300 focus:outline-none focus:border-indigo-500">
-                    <option value="gemini">Google Gemini (AIza...)</option>
-                    <option value="groq">Groq Free Llama 3 (gsk_...)</option>
-                    <option value="openai">OpenAI / ChatGPT (sk-...)</option>
-                    <option value="openrouter">OpenRouter (sk-or-...)</option>
-                </select>
+        <!-- Universal Auto-Detect API Key Box -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div class="flex flex-col">
+                <label for="apiKey" class="text-sm font-medium text-slate-200">Enter your API Key:</label>
+                <span id="detectedBadge" class="text-xs text-indigo-400">Auto-detects Gemini, Groq, OpenAI, OpenRouter, Claude & more</span>
             </div>
-            <input type="password" id="apiKey" placeholder="Optional: Deep AI scan ke liye API key paste karo..." 
-                class="w-full md:w-3/5 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+            <input type="password" id="apiKey" placeholder="Paste any API key (Gemini, Groq, OpenAI, OpenRouter, Claude)..." 
+                class="w-full sm:w-2/3 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
         </div>
 
         <!-- Main Input Grid -->
@@ -50,11 +45,11 @@
             </div>
         </div>
 
-        <!-- Analyze Buttons (AI Mode + Zero-Key Instant ATS Mode) -->
+        <!-- Analyze Buttons -->
         <div class="text-center mb-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button id="analyzeBtn" 
                 class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer w-full sm:w-auto">
-                Deep AI Analyze (With API Key)
+                Analyze with AI (Auto-Detect Key)
             </button>
             <button id="instantScanBtn" 
                 class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer w-full sm:w-auto">
@@ -65,7 +60,6 @@
 
         <!-- Results Dashboard -->
         <div id="resultSection" class="hidden space-y-6">
-            <!-- Score Card -->
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 text-center">
                 <div id="modeBadge" class="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700 mb-2">AI Deep Analysis</div>
                 <h3 class="text-slate-400 text-sm uppercase tracking-wider mb-1">ATS Match Score</h3>
@@ -73,7 +67,6 @@
                 <p id="summaryText" class="text-slate-300 text-sm mt-3 max-w-2xl mx-auto"></p>
             </div>
 
-            <!-- Keywords & Tips Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
                     <h3 class="text-lg font-semibold text-rose-400 mb-3">Missing Keywords</h3>
@@ -85,7 +78,6 @@
                 </div>
             </div>
 
-            <!-- AI Suggested Bullet Points -->
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-lg font-semibold text-indigo-400">Ready-to-Use Resume Bullet Points</h3>

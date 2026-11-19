@@ -2,8 +2,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 const resumeInput = document.getElementById('resumeInput');
 const fileStatus = document.getElementById('fileStatus');
-const apiProviderSelect = document.getElementById('apiProvider');
 const apiKeyInput = document.getElementById('apiKey');
+const detectedBadge = document.getElementById('detectedBadge');
 const jobDescInput = document.getElementById('jobDesc');
 const analyzeBtn = document.getElementById('analyzeBtn');
 const instantScanBtn = document.getElementById('instantScanBtn');
@@ -20,16 +20,37 @@ const copyBulletsBtn = document.getElementById('copyBulletsBtn');
 
 let extractedResumeText = "";
 
-// Update placeholder dynamically based on selected AI provider
-apiProviderSelect.addEventListener('change', () => {
-    const placeholders = {
-        gemini: "Google Gemini API key paste karo (AIza...)...",
-        groq: "Free Groq API key paste karo (gsk_...)...",
-        openai: "OpenAI API key paste karo (sk-...)...",
-        openrouter: "OpenRouter API key paste karo (sk-or-...)..."
-    };
-    apiKeyInput.placeholder = placeholders[apiProviderSelect.value];
+// Live API Provider Auto-Detection while typing/pasting
+apiKeyInput.addEventListener('input', () => {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+        detectedBadge.textContent = "Auto-detects Gemini, Groq, OpenAI, OpenRouter, Claude & more";
+        detectedBadge.className = "text-xs text-indigo-400";
+        return;
+    }
+    const provider = detectProvider(key);
+    detectedBadge.textContent = `✅ Detected: ${provider.label}`;
+    detectedBadge.className = "text-xs text-emerald-400 font-medium";
 });
+
+function detectProvider(apiKey) {
+    if (apiKey.startsWith("AIza")) {
+        return { id: "gemini", label: "Google Gemini API" };
+    }
+    if (apiKey.startsWith("gsk_")) {
+        return { id: "groq", label: "Groq Cloud API" };
+    }
+    if (apiKey.startsWith("sk-or-")) {
+        return { id: "openrouter", label: "OpenRouter API" };
+    }
+    if (apiKey.startsWith("sk-ant-")) {
+        return { id: "anthropic", label: "Anthropic Claude API" };
+    }
+    if (apiKey.startsWith("sk-")) {
+        return { id: "openai", label: "OpenAI API" };
+    }
+    return { id: "universal", label: "Universal / Personal API Key" };
+}
 
 resumeInput.addEventListener('change', async (event) => {
     const file = event.target.files[0];
@@ -65,9 +86,26 @@ async function extractTextFromPDF(file) {
     return fullText.trim();
 }
 
-// 1. Deep AI Scan (Gemini, Groq, OpenAI, OpenRouter)
+// Safe JSON Extractor (Prevents crashes if AI wraps JSON in ```json ... ```)
+function safeParseAIJson(rawText) {
+    try {
+        return JSON.parse(rawText);
+    } catch {
+        const cleaned = rawText
+            .replace(/```json/gi, "")
+            .replace(/```/g, "")
+            .trim();
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+        }
+        throw new Error("AI response format parse nahi ho paya. Dobara try karein.");
+    }
+}
+
+// 1. Universal AI Analyze (Auto-Detects Any API Key)
 analyzeBtn.addEventListener('click', async () => {
-    const provider = apiProviderSelect.value;
     const apiKey = apiKeyInput.value.trim();
     const jobDesc = jobDescInput.value.trim();
 
@@ -80,32 +118,26 @@ analyzeBtn.addEventListener('click', async () => {
         return;
     }
     if (!apiKey) {
-        alert("API key khali hai! Key daalo ya neeche 'Instant ATS Scan (No API Key)' button use karo.");
+        alert("API key khali hai! Koi bhi API key daalo ya 'Instant ATS Scan (No API Key)' use karo.");
         return;
     }
 
-    setLoading(true, `AI (${provider.toUpperCase()}) tumhara resume scan kar raha hai...`);
+    const provider = detectProvider(apiKey);
+    setLoading(true, `${provider.label} se resume analyze ho raha hai...`);
 
     try {
         const prompt = buildPrompt(extractedResumeText, jobDesc);
-        let analysisResult;
-
-        if (provider === 'gemini') {
-            analysisResult = await analyzeWithGemini(apiKey, prompt);
-        } else {
-            analysisResult = await analyzeWithOpenAICompatible(provider, apiKey, prompt);
-        }
-
-        displayResults(analysisResult, `AI Deep Analysis (${provider.toUpperCase()})`);
+        const result = await routeUniversalAI(provider.id, apiKey, prompt);
+        displayResults(result.data, `${provider.label} (${result.modelUsed})`);
     } catch (error) {
         console.error("Analysis Error:", error);
-        alert(`API Error: ${error.message}\n\nTip: Aap bina key ke 'Instant ATS Scan (No API Key)' bhi try kar sakte hain.`);
+        alert(`Error: ${error.message}\n\nTip: Bina API key ke 'Instant ATS Scan (No API Key)' button bhi 100% kaam karta hai.`);
     } finally {
         setLoading(false);
     }
 });
 
-// 2. Zero-API-Key Instant ATS Keyword Engine (Recruiter-Friendly Live Demo)
+// 2. Zero-API-Key Instant ATS Engine
 instantScanBtn.addEventListener('click', () => {
     const jobDesc = jobDescInput.value.trim();
 
@@ -119,7 +151,7 @@ instantScanBtn.addEventListener('click', () => {
     }
 
     const result = runLocalATSEngine(extractedResumeText, jobDesc);
-    displayResults(result, "Instant Keyword ATS Mode (No API Key)");
+    displayResults(result, "Instant ATS Scan (No API Key)");
 });
 
 function setLoading(isLoading, text = "") {
@@ -141,7 +173,7 @@ function buildPrompt(resumeText, jobDescription) {
     Act as an expert Technical Recruiter and Applicant Tracking System (ATS). 
     Compare the following Resume against the Job Description.
     
-    Return ONLY valid JSON with these exact keys:
+    Return ONLY valid JSON (no markdown, no extra commentary) with these exact keys:
     {
         "score": (number between 0 and 100 representing ATS match percentage),
         "summary": (2-3 sentences explaining overall fit and main strengths/gaps),
@@ -158,11 +190,82 @@ function buildPrompt(resumeText, jobDescription) {
     `;
 }
 
-async function analyzeWithGemini(apiKey, prompt) {
-    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-    let lastError = null;
+async function routeUniversalAI(providerId, apiKey, prompt) {
+    if (providerId === "gemini") {
+        return await runGeminiUniversal(apiKey, prompt);
+    }
+    if (providerId === "anthropic") {
+        return await runAnthropicUniversal(apiKey, prompt);
+    }
+    if (providerId === "groq") {
+        return await runOpenAICompatible("https://api.groq.com/openai/v1/chat/completions", apiKey, [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768"
+        ], prompt);
+    }
+    if (providerId === "openrouter") {
+        return await runOpenAICompatible("https://openrouter.ai/api/v1/chat/completions", apiKey, [
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemini-2.0-flash-exp:free",
+            "openai/gpt-4o-mini"
+        ], prompt);
+    }
+    if (providerId === "openai") {
+        return await runOpenAICompatible("https://api.openai.com/v1/chat/completions", apiKey, [
+            "gpt-4o-mini",
+            "gpt-4.1-mini",
+            "gpt-3.5-turbo"
+        ], prompt);
+    }
 
-    for (const model of models) {
+    // Universal fallback for any personal/custom key (tries Groq -> OpenRouter -> OpenAI -> Mistral)
+    const universalProviders = [
+        { url: "https://api.groq.com/openai/v1/chat/completions", models: ["llama-3.3-70b-versatile"] },
+        { url: "https://openrouter.ai/api/v1/chat/completions", models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-4o-mini"] },
+        { url: "https://api.openai.com/v1/chat/completions", models: ["gpt-4o-mini"] },
+        { url: "https://api.mistral.ai/v1/chat/completions", models: ["mistral-small-latest"] }
+    ];
+
+    let lastErr = new Error("Provided personal API key kisi standard provider se match nahi hui.");
+    for (const p of universalProviders) {
+        try {
+            return await runOpenAICompatible(p.url, apiKey, p.models, prompt);
+        } catch (err) {
+            lastErr = err;
+        }
+    }
+    throw lastErr;
+}
+
+// Auto-discovers ALL active Gemini models on user's key so it NEVER hits 404
+async function runGeminiUniversal(apiKey, prompt) {
+    let modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-pro"];
+
+    try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listRes.ok) {
+            const listData = await listRes.json();
+            const activeModels = (listData.models || [])
+                .filter(m => m.supportedGenerationMethods?.includes("generateContent"))
+                .map(m => m.name.replace("models/", ""))
+                .filter(name => name.includes("gemini") && !name.includes("embedding") && !name.includes("vision"));
+
+            // Prioritize flash models first for speed & free-tier quota
+            const sorted = [
+                ...activeModels.filter(m => m.includes("flash")),
+                ...activeModels.filter(m => !m.includes("flash"))
+            ];
+            if (sorted.length > 0) {
+                modelsToTry = [...new Set(sorted)];
+            }
+        }
+    } catch (e) {
+        console.warn("Using default Gemini model priority list.");
+    }
+
+    let lastError = null;
+    for (const model of modelsToTry) {
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
@@ -181,48 +284,86 @@ async function analyzeWithGemini(apiKey, prompt) {
 
             const data = await response.json();
             const rawText = data.candidates[0].content.parts[0].text;
-            return JSON.parse(rawText);
-        } catch (error) {
-            lastError = error;
+            return { data: safeParseAIJson(rawText), modelUsed: model };
+        } catch (err) {
+            lastError = err;
         }
     }
     throw lastError;
 }
 
-async function analyzeWithOpenAICompatible(provider, apiKey, prompt) {
-    const endpoints = {
-        groq: { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile" },
-        openai: { url: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini" },
-        openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.3-70b-instruct:free" }
-    };
+// Runs OpenAI, Groq, OpenRouter, Mistral with automatic model fallback
+async function runOpenAICompatible(endpointUrl, apiKey, models, prompt) {
+    let lastError = null;
+    for (const model of models) {
+        try {
+            const response = await fetch(endpointUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{ role: "user", content: prompt }]
+                })
+            });
 
-    const config = endpoints[provider];
-    const response = await fetch(config.url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: config.model,
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" }
-        })
-    });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || `HTTP ${response.status}`);
+            }
 
-    if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || `Request failed for ${provider}`);
+            const data = await response.json();
+            const rawText = data.choices[0].message.content;
+            return { data: safeParseAIJson(rawText), modelUsed: model };
+        } catch (err) {
+            lastError = err;
+        }
     }
+    throw lastError;
+}
 
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+// Runs Anthropic Claude Keys directly from browser
+async function runAnthropicUniversal(apiKey, prompt) {
+    const models = ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"];
+    let lastError = null;
+
+    for (const model of models) {
+        try {
+            const response = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": apiKey,
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-dangerous-direct-browser-access": "true"
+                },
+                body: JSON.stringify({
+                    model: model,
+                    max_tokens: 1024,
+                    messages: [{ role: "user", content: prompt }]
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || `Claude HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const rawText = data.content[0].text;
+            return { data: safeParseAIJson(rawText), modelUsed: model };
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    throw lastError;
 }
 
 // Local Client-Side ATS Matcher (Works 100% Offline / Without Any API Key)
 function runLocalATSEngine(resumeText, jobDesc) {
     const stopWords = new Set(["and", "the", "for", "with", "you", "will", "are", "from", "that", "this", "have", "your", "our", "work", "role", "team", "using", "build", "strong", "skills", "experience", "knowledge", "ability", "good", "plus", "based", "into", "across", "about", "requirements", "responsibilities", "qualifications", "intern", "internship", "company", "looking", "candidate"]);
-    
     const cleanWords = (text) => text.toLowerCase().match(/\b[a-z0-9+#.-]{2,}\b/g) || [];
     
     const jdWords = [...new Set(cleanWords(jobDesc))].filter(w => !stopWords.has(w) && isNaN(w));
@@ -236,12 +377,12 @@ function runLocalATSEngine(resumeText, jobDesc) {
 
     return {
         score,
-        summary: `Instant ATS Keyword Scan complete: Resume matched ${matched.length} out of ${jdWords.length} key terms from the Job Description. Enter a free Gemini or Groq API key above for deep AI sentence rewriting.`,
+        summary: `Instant ATS Keyword Scan complete: Resume matched ${matched.length} out of ${jdWords.length} key terms from the Job Description. Paste any AI API key above for deep AI sentence rewriting.`,
         missingKeywords: missing.slice(0, 8).length ? missing.slice(0, 8) : ["None — Great Keyword Coverage!"],
         tips: [
             "Ensure top missing keywords from the Job Description appear naturally in your Skills or Project bullet points.",
             "Keep measurable impact metrics (e.g., payload sizes, performance gains, CGPA) visible on a single page.",
-            "Use Deep AI Analyze with a free Gemini or Groq key for tailored resume bullet generation."
+            "Paste any Gemini, Groq, OpenAI, or OpenRouter key above for AI-generated tailored resume bullets."
         ],
         suggestedBullets: [
             `Developed and deployed responsive web solutions aligned with ${matched.slice(0, 3).join(", ") || "modern web standards"} and clean Git workflows.`,
@@ -264,7 +405,7 @@ function displayResults(result, badgeLabel) {
     summaryText.textContent = result.summary;
 
     missingKeywordsList.innerHTML = "";
-    result.missingKeywords.forEach(keyword => {
+    (result.missingKeywords || []).forEach(keyword => {
         const li = document.createElement('li');
         li.textContent = keyword;
         li.className = "bg-rose-950 text-rose-300 border border-rose-800 text-xs font-medium px-3 py-1 rounded-full";
@@ -272,7 +413,7 @@ function displayResults(result, badgeLabel) {
     });
 
     tipsList.innerHTML = "";
-    result.tips.forEach(tip => {
+    (result.tips || []).forEach(tip => {
         const li = document.createElement('li');
         li.textContent = tip;
         tipsList.appendChild(li);
@@ -288,7 +429,7 @@ function displayResults(result, badgeLabel) {
     }
 
     copyBulletsBtn.onclick = () => {
-        const textToCopy = result.suggestedBullets.map(b => `• ${b}`).join("\n");
+        const textToCopy = (result.suggestedBullets || []).map(b => `• ${b}`).join("\n");
         navigator.clipboard.writeText(textToCopy);
         copyBulletsBtn.textContent = "✅ Copied!";
         setTimeout(() => copyBulletsBtn.textContent = "Copy Bullets", 2000);
