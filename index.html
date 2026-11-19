@@ -16,11 +16,19 @@
             <p class="text-slate-400">Apna resume aur job description daalo, aur instant ATS match score pao.</p>
         </header>
 
-        <!-- API Key Section -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <label for="apiKey" class="text-sm font-medium text-slate-300">Gemini API Key:</label>
-            <input type="password" id="apiKey" placeholder="Apni Gemini API key yahan paste karo..." 
-                class="w-full sm:w-2/3 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+        <!-- Multi-Provider API Key Section -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex flex-col md:flex-row gap-3 items-center justify-between">
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <label for="apiProvider" class="text-sm font-medium text-slate-300 whitespace-nowrap">AI Provider:</label>
+                <select id="apiProvider" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-indigo-300 focus:outline-none focus:border-indigo-500">
+                    <option value="gemini">Google Gemini (AIza...)</option>
+                    <option value="groq">Groq Free Llama 3 (gsk_...)</option>
+                    <option value="openai">OpenAI / ChatGPT (sk-...)</option>
+                    <option value="openrouter">OpenRouter (sk-or-...)</option>
+                </select>
+            </div>
+            <input type="password" id="apiKey" placeholder="Optional: Deep AI scan ke liye API key paste karo..." 
+                class="w-full md:w-3/5 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
         </div>
 
         <!-- Main Input Grid -->
@@ -42,19 +50,24 @@
             </div>
         </div>
 
-        <!-- Analyze Button -->
-        <div class="text-center mb-10">
+        <!-- Analyze Buttons (AI Mode + Zero-Key Instant ATS Mode) -->
+        <div class="text-center mb-10 flex flex-col sm:flex-row justify-center items-center gap-4">
             <button id="analyzeBtn" 
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer">
-                Analyze Resume
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer w-full sm:w-auto">
+                Deep AI Analyze (With API Key)
             </button>
-            <p id="loadingText" class="text-indigo-400 text-sm mt-3 hidden animate-pulse">AI tumhara resume scan kar raha hai...</p>
+            <button id="instantScanBtn" 
+                class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition duration-200 cursor-pointer w-full sm:w-auto">
+                Instant ATS Scan (No API Key)
+            </button>
         </div>
+        <p id="loadingText" class="text-indigo-400 text-sm -mt-6 mb-8 text-center hidden animate-pulse">Resume scan ho raha hai...</p>
 
         <!-- Results Dashboard -->
         <div id="resultSection" class="hidden space-y-6">
             <!-- Score Card -->
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 text-center">
+                <div id="modeBadge" class="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700 mb-2">AI Deep Analysis</div>
                 <h3 class="text-slate-400 text-sm uppercase tracking-wider mb-1">ATS Match Score</h3>
                 <div id="scoreDisplay" class="text-5xl font-extrabold text-emerald-400">0%</div>
                 <p id="summaryText" class="text-slate-300 text-sm mt-3 max-w-2xl mx-auto"></p>
