@@ -1,4 +1,4 @@
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '[https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js](https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js)';
 
 const resumeInput = document.getElementById('resumeInput');
 const fileStatus = document.getElementById('fileStatus');
@@ -24,7 +24,7 @@ let extractedResumeText = "";
 apiKeyInput.addEventListener('input', () => {
     const key = apiKeyInput.value.trim();
     if (!key) {
-        detectedBadge.textContent = "Auto-detects Gemini, Groq, OpenAI, OpenRouter, Claude & more";
+        detectedBadge.textContent = "Auto-detects Gemini, Groq, OpenAI, OpenRouter, Claude, DeepSeek, Mistral & more";
         detectedBadge.className = "text-xs text-indigo-400";
         return;
     }
@@ -34,7 +34,7 @@ apiKeyInput.addEventListener('input', () => {
 });
 
 function detectProvider(apiKey) {
-    if (apiKey.startsWith("AIza")) {
+    if (apiKey.startsWith("AIza") || apiKey.startsWith("AQ.")) {
         return { id: "gemini", label: "Google Gemini API" };
     }
     if (apiKey.startsWith("gsk_")) {
@@ -46,10 +46,19 @@ function detectProvider(apiKey) {
     if (apiKey.startsWith("sk-ant-")) {
         return { id: "anthropic", label: "Anthropic Claude API" };
     }
-    if (apiKey.startsWith("sk-")) {
-        return { id: "openai", label: "OpenAI API" };
+    if (apiKey.startsWith("xai-")) {
+        return { id: "xai", label: "xAI Grok API" };
     }
-    return { id: "universal", label: "Universal / Personal API Key" };
+    if (apiKey.startsWith("csk-")) {
+        return { id: "cerebras", label: "Cerebras Cloud API" };
+    }
+    if (apiKey.startsWith("pplx-")) {
+        return { id: "perplexity", label: "Perplexity AI API" };
+    }
+    if (apiKey.startsWith("sk-")) {
+        return { id: "openai_or_deepseek", label: "OpenAI / DeepSeek API" };
+    }
+    return { id: "universal", label: "Universal Multi-Provider Scan (Auto-Routing)" };
 }
 
 resumeInput.addEventListener('change', async (event) => {
@@ -86,15 +95,11 @@ async function extractTextFromPDF(file) {
     return fullText.trim();
 }
 
-// Safe JSON Extractor (Prevents crashes if AI wraps JSON in ```json ... ```)
 function safeParseAIJson(rawText) {
     try {
         return JSON.parse(rawText);
     } catch {
-        const cleaned = rawText
-            .replace(/```json/gi, "")
-            .replace(/```/g, "")
-            .trim();
+        const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
         const firstBrace = cleaned.indexOf("{");
         const lastBrace = cleaned.lastIndexOf("}");
         if (firstBrace !== -1 && lastBrace !== -1) {
@@ -104,7 +109,6 @@ function safeParseAIJson(rawText) {
     }
 }
 
-// 1. Universal AI Analyze (Auto-Detects Any API Key)
 analyzeBtn.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim();
     const jobDesc = jobDescInput.value.trim();
@@ -128,7 +132,7 @@ analyzeBtn.addEventListener('click', async () => {
     try {
         const prompt = buildPrompt(extractedResumeText, jobDesc);
         const result = await routeUniversalAI(provider.id, apiKey, prompt);
-        displayResults(result.data, `${provider.label} (${result.modelUsed})`);
+        displayResults(result.data, `${result.providerName} (${result.modelUsed})`);
     } catch (error) {
         console.error("Analysis Error:", error);
         alert(`Error: ${error.message}\n\nTip: Bina API key ke 'Instant ATS Scan (No API Key)' button bhi 100% kaam karta hai.`);
@@ -137,7 +141,6 @@ analyzeBtn.addEventListener('click', async () => {
     }
 });
 
-// 2. Zero-API-Key Instant ATS Engine
 instantScanBtn.addEventListener('click', () => {
     const jobDesc = jobDescInput.value.trim();
 
@@ -190,60 +193,124 @@ function buildPrompt(resumeText, jobDescription) {
     `;
 }
 
+// All OpenAI-Compatible Providers Registry
+const OPENAI_COMPATIBLE_PROVIDERS = [
+    {
+        id: "groq",
+        name: "Groq Cloud",
+        url: "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)",
+        modelsUrl: "[https://api.groq.com/openai/v1/models](https://api.groq.com/openai/v1/models)",
+        fallbackModels: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"]
+    },
+    {
+        id: "openai",
+        name: "OpenAI",
+        url: "[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)",
+        fallbackModels: ["gpt-4o-mini", "gpt-4.1-mini", "gpt-3.5-turbo"]
+    },
+    {
+        id: "openrouter",
+        name: "OpenRouter",
+        url: "[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)",
+        fallbackModels: ["meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-flash-exp:free", "openai/gpt-4o-mini"]
+    },
+    {
+        id: "deepseek",
+        name: "DeepSeek",
+        url: "[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)",
+        fallbackModels: ["deepseek-chat"]
+    },
+    {
+        id: "mistral",
+        name: "Mistral AI",
+        url: "[https://api.mistral.ai/v1/chat/completions](https://api.mistral.ai/v1/chat/completions)",
+        fallbackModels: ["mistral-small-latest", "open-mistral-nemo"]
+    },
+    {
+        id: "xai",
+        name: "xAI Grok",
+        url: "[https://api.x.ai/v1/chat/completions](https://api.x.ai/v1/chat/completions)",
+        fallbackModels: ["grok-2-latest", "grok-beta"]
+    },
+    {
+        id: "cerebras",
+        name: "Cerebras",
+        url: "[https://api.cerebras.ai/v1/chat/completions](https://api.cerebras.ai/v1/chat/completions)",
+        fallbackModels: ["llama-3.3-70b", "llama3.1-8b"]
+    },
+    {
+        id: "perplexity",
+        name: "Perplexity",
+        url: "[https://api.perplexity.ai/chat/completions](https://api.perplexity.ai/chat/completions)",
+        fallbackModels: ["sonar", "sonar-pro"]
+    },
+    {
+        id: "together",
+        name: "Together AI",
+        url: "[https://api.together.xyz/v1/chat/completions](https://api.together.xyz/v1/chat/completions)",
+        fallbackModels: ["meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"]
+    },
+    {
+        id: "fireworks",
+        name: "Fireworks AI",
+        url: "[https://api.fireworks.ai/inference/v1/chat/completions](https://api.fireworks.ai/inference/v1/chat/completions)",
+        fallbackModels: ["accounts/fireworks/models/llama-v3p3-70b-instruct"]
+    }
+];
+
 async function routeUniversalAI(providerId, apiKey, prompt) {
+    // Direct Fast-Path for known prefixes
     if (providerId === "gemini") {
         return await runGeminiUniversal(apiKey, prompt);
     }
     if (providerId === "anthropic") {
         return await runAnthropicUniversal(apiKey, prompt);
     }
-    if (providerId === "groq") {
-        return await runOpenAICompatible("https://api.groq.com/openai/v1/chat/completions", apiKey, [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768"
-        ], prompt);
-    }
-    if (providerId === "openrouter") {
-        return await runOpenAICompatible("https://openrouter.ai/api/v1/chat/completions", apiKey, [
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "google/gemini-2.0-flash-exp:free",
-            "openai/gpt-4o-mini"
-        ], prompt);
-    }
-    if (providerId === "openai") {
-        return await runOpenAICompatible("https://api.openai.com/v1/chat/completions", apiKey, [
-            "gpt-4o-mini",
-            "gpt-4.1-mini",
-            "gpt-3.5-turbo"
-        ], prompt);
-    }
-
-    // Universal fallback for any personal/custom key (tries Groq -> OpenRouter -> OpenAI -> Mistral)
-    const universalProviders = [
-        { url: "https://api.groq.com/openai/v1/chat/completions", models: ["llama-3.3-70b-versatile"] },
-        { url: "https://openrouter.ai/api/v1/chat/completions", models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-4o-mini"] },
-        { url: "https://api.openai.com/v1/chat/completions", models: ["gpt-4o-mini"] },
-        { url: "https://api.mistral.ai/v1/chat/completions", models: ["mistral-small-latest"] }
-    ];
-
-    let lastErr = new Error("Provided personal API key kisi standard provider se match nahi hui.");
-    for (const p of universalProviders) {
+    if (providerId === "openai_or_deepseek") {
         try {
-            return await runOpenAICompatible(p.url, apiKey, p.models, prompt);
+            return await runOpenAICompatibleProvider(OPENAI_COMPATIBLE_PROVIDERS.find(p => p.id === "openai"), apiKey, prompt);
+        } catch {
+            return await runOpenAICompatibleProvider(OPENAI_COMPATIBLE_PROVIDERS.find(p => p.id === "deepseek"), apiKey, prompt);
+        }
+    }
+
+    const directMatch = OPENAI_COMPATIBLE_PROVIDERS.find(p => p.id === providerId);
+    if (directMatch) {
+        return await runOpenAICompatibleProvider(directMatch, apiKey, prompt);
+    }
+
+    // Full Universal Sweep for any personal / custom / unknown prefix API key
+    try {
+        return await runGeminiUniversal(apiKey, prompt);
+    } catch {}
+
+    try {
+        return await runAnthropicUniversal(apiKey, prompt);
+    } catch {}
+
+    let lastErr = new Error("API Key kisi bhi provider par verify nahi ho payi. Kripya valid key check karein.");
+    for (const provider of OPENAI_COMPATIBLE_PROVIDERS) {
+        try {
+            return await runOpenAICompatibleProvider(provider, apiKey, prompt);
         } catch (err) {
             lastErr = err;
         }
     }
+
+    // Try Cohere v2 endpoint as final check
+    try {
+        return await runCohereUniversal(apiKey, prompt);
+    } catch {}
+
     throw lastErr;
 }
 
-// Auto-discovers ALL active Gemini models on user's key so it NEVER hits 404
+// 1. Google Gemini Universal (Auto-discovers active models on key)
 async function runGeminiUniversal(apiKey, prompt) {
     let modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-pro"];
 
     try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const listRes = await fetch(`[https://generativelanguage.googleapis.com/v1beta/models?key=$](https://generativelanguage.googleapis.com/v1beta/models?key=$){apiKey}`);
         if (listRes.ok) {
             const listData = await listRes.json();
             const activeModels = (listData.models || [])
@@ -251,7 +318,6 @@ async function runGeminiUniversal(apiKey, prompt) {
                 .map(m => m.name.replace("models/", ""))
                 .filter(name => name.includes("gemini") && !name.includes("embedding") && !name.includes("vision"));
 
-            // Prioritize flash models first for speed & free-tier quota
             const sorted = [
                 ...activeModels.filter(m => m.includes("flash")),
                 ...activeModels.filter(m => !m.includes("flash"))
@@ -260,14 +326,12 @@ async function runGeminiUniversal(apiKey, prompt) {
                 modelsToTry = [...new Set(sorted)];
             }
         }
-    } catch (e) {
-        console.warn("Using default Gemini model priority list.");
-    }
+    } catch {}
 
     let lastError = null;
     for (const model of modelsToTry) {
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const url = `[https://generativelanguage.googleapis.com/v1beta/models/$](https://generativelanguage.googleapis.com/v1beta/models/$){model}:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -284,7 +348,7 @@ async function runGeminiUniversal(apiKey, prompt) {
 
             const data = await response.json();
             const rawText = data.candidates[0].content.parts[0].text;
-            return { data: safeParseAIJson(rawText), modelUsed: model };
+            return { data: safeParseAIJson(rawText), providerName: "Google Gemini", modelUsed: model };
         } catch (err) {
             lastError = err;
         }
@@ -292,12 +356,31 @@ async function runGeminiUniversal(apiKey, prompt) {
     throw lastError;
 }
 
-// Runs OpenAI, Groq, OpenRouter, Mistral with automatic model fallback
-async function runOpenAICompatible(endpointUrl, apiKey, models, prompt) {
-    let lastError = null;
-    for (const model of models) {
+// 2. OpenAI-Compatible Universal Runner (with dynamic model list support)
+async function runOpenAICompatibleProvider(provider, apiKey, prompt) {
+    let modelsToTry = [...provider.fallbackModels];
+
+    if (provider.modelsUrl) {
         try {
-            const response = await fetch(endpointUrl, {
+            const listRes = await fetch(provider.modelsUrl, {
+                headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+            if (listRes.ok) {
+                const listData = await listRes.json();
+                const discovered = (listData.data || [])
+                    .map(m => m.id)
+                    .filter(id => !id.includes("whisper") && !id.includes("tts") && !id.includes("guard") && !id.includes("embed"));
+                if (discovered.length > 0) {
+                    modelsToTry = [...new Set([...provider.fallbackModels, ...discovered])];
+                }
+            }
+        } catch {}
+    }
+
+    let lastError = null;
+    for (const model of modelsToTry) {
+        try {
+            const response = await fetch(provider.url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -316,7 +399,7 @@ async function runOpenAICompatible(endpointUrl, apiKey, models, prompt) {
 
             const data = await response.json();
             const rawText = data.choices[0].message.content;
-            return { data: safeParseAIJson(rawText), modelUsed: model };
+            return { data: safeParseAIJson(rawText), providerName: provider.name, modelUsed: model };
         } catch (err) {
             lastError = err;
         }
@@ -324,14 +407,14 @@ async function runOpenAICompatible(endpointUrl, apiKey, models, prompt) {
     throw lastError;
 }
 
-// Runs Anthropic Claude Keys directly from browser
+// 3. Anthropic Claude Universal Runner
 async function runAnthropicUniversal(apiKey, prompt) {
     const models = ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"];
     let lastError = null;
 
     for (const model of models) {
         try {
-            const response = await fetch("https://api.anthropic.com/v1/messages", {
+            const response = await fetch("[https://api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -353,7 +436,7 @@ async function runAnthropicUniversal(apiKey, prompt) {
 
             const data = await response.json();
             const rawText = data.content[0].text;
-            return { data: safeParseAIJson(rawText), modelUsed: model };
+            return { data: safeParseAIJson(rawText), providerName: "Anthropic Claude", modelUsed: model };
         } catch (err) {
             lastError = err;
         }
@@ -361,7 +444,30 @@ async function runAnthropicUniversal(apiKey, prompt) {
     throw lastError;
 }
 
-// Local Client-Side ATS Matcher (Works 100% Offline / Without Any API Key)
+// 4. Cohere Universal Runner
+async function runCohereUniversal(apiKey, prompt) {
+    const response = await fetch("[https://api.cohere.com/v2/chat](https://api.cohere.com/v2/chat)", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: "command-r-plus-08-2024",
+            messages: [{ role: "user", content: prompt }]
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Cohere HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const rawText = data.message.content[0].text;
+    return { data: safeParseAIJson(rawText), providerName: "Cohere", modelUsed: "command-r-plus" };
+}
+
+// 5. Local Client-Side ATS Matcher (100% Offline / Zero API Key)
 function runLocalATSEngine(resumeText, jobDesc) {
     const stopWords = new Set(["and", "the", "for", "with", "you", "will", "are", "from", "that", "this", "have", "your", "our", "work", "role", "team", "using", "build", "strong", "skills", "experience", "knowledge", "ability", "good", "plus", "based", "into", "across", "about", "requirements", "responsibilities", "qualifications", "intern", "internship", "company", "looking", "candidate"]);
     const cleanWords = (text) => text.toLowerCase().match(/\b[a-z0-9+#.-]{2,}\b/g) || [];
@@ -382,7 +488,7 @@ function runLocalATSEngine(resumeText, jobDesc) {
         tips: [
             "Ensure top missing keywords from the Job Description appear naturally in your Skills or Project bullet points.",
             "Keep measurable impact metrics (e.g., payload sizes, performance gains, CGPA) visible on a single page.",
-            "Paste any Gemini, Groq, OpenAI, or OpenRouter key above for AI-generated tailored resume bullets."
+            "Paste any Gemini, Groq, OpenAI, Claude, or DeepSeek key above for AI-generated tailored resume bullets."
         ],
         suggestedBullets: [
             `Developed and deployed responsive web solutions aligned with ${matched.slice(0, 3).join(", ") || "modern web standards"} and clean Git workflows.`,
